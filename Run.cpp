@@ -7,7 +7,7 @@ const int IMG_ENEMY_MAX = 4;	// 敵の画像の枚数
 
 // グローバル変数
 // ここでゲームに用いる変数や配列を定義する
-int imgCastle, imgFloor, ;	// 背景画像
+int imgCastle, imgFloor;	// 背景画像
 int imgRun, imgJump, imgSliding, imgAttack, imgDamage;		// プレイヤーの画像
 int imgEnemy[IMG_ENEMY_MAX];	// 敵の画像
 int imgDonut, intLightning, intMagnet;	// アイテムの画像
@@ -31,7 +31,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		ClearDrawScreen();	// 画面をクリアする
 
 		// ゲームの骨組みとなる処理を、ここに記入する
-		DrawGraph(0, 0, imgCastle, false);	// 背景画像を描画する
+		ScrollBG(1);	// 背景をスクロールさせる
 
 		ScreenFlip();	// 裏画面の内容を表画面に反映させる
 		WaitTimer(1000 / FPS);	// 1定時間待つ
@@ -84,4 +84,13 @@ int LoadSoundMemWithCheck(const char* file) {
 	int sou = LoadSoundMem(file);
 	if (sou == -1) { MessageBox(GetMainWindowHandle(), file, "音楽の再生に失敗", MB_OK | MB_ICONSTOP); }
 	return sou;
+}
+
+void ScrollBG(int spd) {
+	static int CastleX, floorX;	// スクロール用の変数
+	CastleX = (CastleX - spd) % WIDTH;	// 背景のスクロール
+	DrawGraph(CastleX - WIDTH, 0, imgCastle, false);
+	DrawGraph(CastleX, 0, imgCastle, false);
+	floorX = (floorX + spd * 2) % 120;	// 床
+	for (int i = -1; i < 6; i++) DrawGraph(floorX + i * 120, 240, imgFloor, true);
 }

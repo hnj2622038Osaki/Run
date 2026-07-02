@@ -20,3 +20,4 @@ struct OBJECT	// Ž©‹@‚â“G‹@—p
 void InitGame(void);
 int LoadGraphWithCheck(const char* file);
 int LoadSoundMemWithCheck(const char* file);
+void ScrollBG(int spd);
