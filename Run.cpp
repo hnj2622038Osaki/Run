@@ -23,15 +23,16 @@ int bgm, seDonut, seLightning, seMagnet,seHit,seHit2;		// 音の読み込み用
 int distance = 0;	// ステージ終端までの距離
 int stage = 1;	// ステージ
 int timer = 0;	// タイマー
-int score = 0;
-int hp = 100;
+int score = 0;	// スコア
+int hp = 100;	// 体力
 int invincibleTimer = 0;
-int magnetTimer = 0;
-int playerY = 450;
-int playerVY = 0;
+int magnetTimer = 0;	// マグネットの効果時間
+int playerY = 450;	// プレイヤーのy座標
+int playerVY = 0;	// プレイヤーのy軸方向の速度
 int scene = TITLE;	// 現在のシーン
-int attackTimer = 0;
+int attackTimer = 0;	// 攻撃モードの時間
 int damageTimer = 0;
+int noDamageFrame = 0;	// ダメージを受けたときの無敵時間
 
 bool invincibleMode = false;
 bool magnetMode = false;
@@ -139,9 +140,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 		case OVER:
 			ScrollBG(0);
-			DrawTextC(WIDTH / 2, 220, "GAME OVER", 0xff0000, 100);
-			DrawFormatString(WIDTH / 2 - 240, 350, GetColor(255, 255, 255), "SCORE : %d", score);
-			DrawFormatString(WIDTH / 2 - 240, 500, GetColor(255, 255, 255), "DISTANCE : %d", distance);
+			DrawTextC(WIDTH / 2 - 25, 220, "GAME OVER", 0xff0000, 100);
+			DrawFormatString(WIDTH / 2 - 400, 350, GetColor(255, 255, 255), "スコア : %d", score);
+			DrawFormatString(WIDTH / 2 - 350, 500, GetColor(255, 255, 255), "距離  : %dｍ", distance);
 			DrawTextC(WIDTH / 2, 650, "PRESS SPACE TO RETRY", 0xffff00, 40);
 			if (CheckHitKey(KEY_INPUT_SPACE))
 			{
@@ -217,6 +218,7 @@ void InitGame(void)
 	}
 	PlaySoundMem(bgm, DX_PLAYTYPE_LOOP);
 }
+
 // 画像の読み込み、読み込み失敗時は通知
 int LoadGraphWithCheck(const char* file) {
 	int res = LoadGraph(file);
@@ -230,6 +232,7 @@ int LoadSoundMemWithCheck(const char* file) {
 	if (sou == -1) { MessageBox(GetMainWindowHandle(), file, "音楽の再生に失敗", MB_OK | MB_ICONSTOP); }
 	return sou;
 }
+
 // 背景のスクロール
 void ScrollBG(int spd)
 {
@@ -274,6 +277,7 @@ int SetEnemy(int x, int y, int vx, int vy, int ptn, int img)
 	}
 	return -1;
 }
+
 // 敵の移動
 void MoveEnemy(void)
 {
@@ -286,8 +290,26 @@ void MoveEnemy(void)
 		{
 			enemy[i].state = 0;
 		}
+		if (noDamageFrame == 0)	// 無敵状態でないとき、自機とヒットチェック
+		{
+			int dx = abs(enemy[i].x - player.x);	// 中心座標のピクセル数
+			int dy = abs(enemy[i].y - player.y);	// 中心座標のピクセル数
+			if (dx < enemy[i].wid / 2 + player.wid / 2 && dy < enemy[i].hei / 2 + player.hei / 2)
+			{
+				noDamageFrame = FPS;	// 無敵状態をリセット
+			}
+		}
+		// 無敵中は点滅
+		if (invincibleTimer > 0)
+		{
+			if ((invincibleTimer / 5) % 2 == 0)
+			{
+				DrawPlayer = false;
+			}
+		}
 	}
 }
+
 // トラップの生成
 int SetTrap(int x, int y, int vx, int vy, int ptn, int img)
 {
@@ -307,6 +329,7 @@ int SetTrap(int x, int y, int vx, int vy, int ptn, int img)
 	}
 	return -1;
 }
+
 // トラップの移動
 void MoveTrap(void)
 {
@@ -321,6 +344,7 @@ void MoveTrap(void)
 		}
 	}
 }
+
 // アイテムの生成
 void SetItem(void)
 {
@@ -349,6 +373,7 @@ void SetItem(void)
 		}
 	}
 }
+
 // アイテムの移動
 void MoveItem(void)
 {
@@ -370,6 +395,7 @@ void MoveItem(void)
 		}
 	}
 }
+
 // 衝突判定
 void CheckCollision(void)
 {
@@ -445,7 +471,6 @@ void CheckCollision(void)
 			{
 
 				hp -= 20;
-
 				damageTimer = 60;
 				invincibleTimer = 60;
 				PlaySoundMem(seHit2, DX_PLAYTYPE_BACK);
@@ -468,6 +493,7 @@ void DrawUI(void)
 		DrawFormatString(20, 165, GetColor(0, 255, 255), "MAGNET : %d", magnetTimer / 60);
 	}
 }
+
 void MovePlayer(void)
 {
 	bool drawPlayer = true;
@@ -499,6 +525,8 @@ void MovePlayer(void)
 		attackTimer = 20;
 		PlaySoundMem(seHit, DX_PLAYTYPE_BACK);
 	}
+	else if (noDamageFrame > 0)noDamageFrame--;	// 無敵状態のカウント
+	else if (noDamageFrame % 4 < 2)  DrawRectExtendGraph(0, playerY, 150, playerY + 190, 0, 0, 257, 289, imgDamage, true);
 	// 走る
 	else
 	{
@@ -531,16 +559,6 @@ void MovePlayer(void)
 	}
 	player.x = 100;
 	player.y = playerY;
-
-	// 無敵中は点滅
-	if (invincibleTimer > 0)
-	{
-		if ((invincibleTimer / 5) % 2 == 0)
-		{
-			drawPlayer = false;
-		}
-	}
-
 }
 
 void DrawTextC(int x, int y, const char* txt, int col, int siz)
@@ -564,11 +582,17 @@ void InitVariable(void)
 	hp = 100;
 	distance = 0;
 	timer = 0;
-
+	noDamageFrame = 0;
 	invincibleMode = false;
 	magnetMode = false;
 
 	for (int i = 0; i < ENEMY_MAX; i++)	enemy[i].state = 0;
 	for (int i = 0; i < TRAP_MAX; i++)	trap[i].state = 0;
 	for (int i = 0; i < ITEM_MAX; i++)	item[i].state = 0;
+}
+void DrawImage(int img, int x, int y)
+{
+	int w, h;
+	GetGraphSize(img, &w, &h);
+	DrawGraph(x - w / 2, y - h / 2, img, true);
 }
