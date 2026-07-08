@@ -1,6 +1,7 @@
 #include "DxLib.h"
 #include "Run.h"
 #include <math.h>
+
 const int WIDTH = 1200, HEIGHT = 720;	// ウィンドウの幅と高さのピクセル数
 const int FPS = 60;	// フレームレート
 const int IMG_ENEMY_MAX = 4;	// 敵の画像の枚数
@@ -14,7 +15,7 @@ enum { TITLE, PLAY, OVER};	// シーンを分けるための列挙定数
 // グローバル変数
 // ここでゲームに用いる変数や配列を定義する
 int imgCastle, imgFloor, imgCeiling;	// 背景画像
-int imgRun, imgJump, imgSliding, imgAttack, imgDamage;		// プレイヤーの画像
+int imgRun, imgJump, imgAttack, imgDamage;		// プレイヤーの画像
 int imgEnemy[IMG_ENEMY_MAX];	// 敵の画像
 int imgTrap[IMG_TRAP_MAX];	// トラップの画像
 int imgDonut, imgLightning, imgMagnet;	// アイテムの画像
@@ -59,31 +60,37 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		int spd = 1;
 		if (scene == PLAY && distance == 0) spd = 0;
 
-			MoveEnemy();
-			MoveTrap();
-			MoveItem();
-			CheckCollision();
-			DrawUI();
-
 		// ゲームの骨組みとなる処理を、ここに記入する
 		ScrollBG(spd);	// 背景をスクロールさせる
 		timer++;
 		switch (scene)	// シーンごとに処理を分岐
 		{
-		case TITLE:	// タイトル画面
-			DrawTextC(WIDTH * 0.5, HEIGHT * 0.3, "Sweets Run", 0xffffff, 80);
-			DrawTextC(WIDTH * 0.5, HEIGHT * 0.7, "Press Space To Start", 0xffffff, 30);
+		case TITLE:
+			ScrollBG(1);
+			DrawTextC(WIDTH / 2, 180, "SWEETS RUN", 0xff66ff, 100);
+			DrawTextC(WIDTH / 2, 320, "ドーナツを集めて、迫りくる敵とトラップを避けよう!", 0xffffff, 30);
+			DrawTextC(WIDTH / 2, 500, "SPACE : JUMP", 0xffff00, 30);
+			DrawTextC(WIDTH / 2, 550, "Q : ATTACK", 0xffff00, 30);
+			DrawTextC(WIDTH / 2, 650, "PRESS SPACE TO START", 0x00ff00, 40);
 			if (CheckHitKey(KEY_INPUT_SPACE))
 			{
 				InitVariable();
+				hp = 100;
+				timer = 0;
 				scene = PLAY;
 			}
 			break;
 
-		case PLAY:	// ゲームプレイ画面
-			MovePlayer();	// 自機の操作
-
+		case PLAY:
+			ScrollBG(1);
+			MovePlayer();
+			MoveEnemy();
+			MoveTrap();
+			MoveItem();
+			CheckCollision();
+			DrawUI();
 			distance++;
+			DrawFormatString(WIDTH - 500, 20, GetColor(255, 255, 255), "DISTANCE : %d", distance);
 			// 敵の生成
 			if (timer % 120 == 0)
 			{
@@ -92,7 +99,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			// アイテムの生成
 			if (timer % 90 == 0)
 			{
-				SetItem();
+				//SetItem();
 			}
 			// 無敵時間のカウントダウン
 			if (invincibleTimer > 0)
@@ -108,7 +115,6 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			if (timer % 240 == 0)
 			{
 				int img = GetRand(IMG_TRAP_MAX - 1);
-
 				if (img == 0)
 				{
 					// 天井トラップ
@@ -120,21 +126,32 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 					SetTrap(WIDTH + 100, 560, -8, 0, 0, img);
 				}
 			}
-
-			break;
-
-		case OVER:	// ゲームオーバー画面
-			if (timer < FPS * 3)	// 自機が爆発する演出
+			if (hp <= 0)
 			{
-				DrawTextC(WIDTH * 0.5, HEIGHT * 0.3, "GAME OVER", 0xff0000, 80);
+				scene = OVER;
 			}
-			if (timer > FPS * 10) scene = TITLE;	// タイトルへ遷移
 			break;
-			ScreenFlip();	// 裏画面の内容を表画面に反映させる
-			WaitTimer(1000 / FPS);	// 1定時間待つ
-			if (ProcessMessage() == -1)break;	// Windowsから情報を受け取りエラーが起きたら終了
-			if (CheckHitKey(KEY_INPUT_ESCAPE) == 1)break;	// ESCキーが押されたら終了
+
+		case OVER:
+			ScrollBG(0);
+			DrawTextC(WIDTH / 2, 220, "GAME OVER", 0xff0000, 100);
+			DrawFormatString(WIDTH / 2 - 240, 350, GetColor(255, 255, 255), "SCORE : %d", score);
+			DrawFormatString(WIDTH / 2 - 240, 500, GetColor(255, 255, 255), "DISTANCE : %d", distance);
+			DrawTextC(WIDTH / 2, 650, "PRESS SPACE TO RETRY", 0xffff00, 40);
+			if (CheckHitKey(KEY_INPUT_SPACE))
+			{
+				InitVariable();
+				hp = 100;
+				distance = 0;
+				timer = 0;
+				scene = PLAY;
+			}
+			break;
 		}
+		ScreenFlip();	// 裏画面の内容を表画面に反映させる
+		WaitTimer(1000 / FPS);	// 1定時間待つ
+		if (ProcessMessage() == -1)break;	// Windowsから情報を受け取りエラーが起きたら終了
+		if (CheckHitKey(KEY_INPUT_ESCAPE) == 1)break;	// ESCキーが押されたら終了
 	}
 
 	DxLib_End();	// DXライブラリ使用の終了処理
@@ -151,7 +168,6 @@ void InitGame(void)
 	// プレイヤー用の画像の読み込み
 	imgRun = LoadGraphWithCheck("image/Run.png");
 	imgJump = LoadGraphWithCheck("image/Jump.png");
-	imgSliding = LoadGraphWithCheck("image/Sliding.png");
 	imgAttack = LoadGraphWithCheck("image/Attack.png");
 	imgDamage = LoadGraphWithCheck("image/Damage.png");
 	// 敵用の画像の読み込み
@@ -289,14 +305,8 @@ void MoveTrap(void)
 	for (int i = 0; i < TRAP_MAX; i++)
 	{
 		if (trap[i].state == 0) continue;
-
 		trap[i].x -= 8;
-
-		DrawGraph(trap[i].x,
-			trap[i].y,
-			imgTrap[trap[i].image],
-			true);
-
+		DrawGraph(trap[i].x, trap[i].y, imgTrap[trap[i].image], true);
 		if (trap[i].x < -200)
 		{
 			trap[i].state = 0;
@@ -313,7 +323,6 @@ void SetItem(void)
 			item[i].state = 1;
 			item[i].x = WIDTH + 100;
 			item[i].y = 250 + GetRand(250);
-
 			item[i].image = GetRand(2);
 			return;
 		}
@@ -343,10 +352,15 @@ void MoveItem(void)
 // 衝突判定
 void CheckCollision(void)
 {
+	int playerX = 100;
+	int playerW = 150;
+	int playerH = 190;
+
 	for (int i = 0; i < ENEMY_MAX; i++)
 	{
 		if (enemy[i].state == 0) continue;
-		if (enemy[i].x < 180 && enemy[i].x > 0 && abs(enemy[i].y - playerY) < 120)
+
+		if (enemy[i].x < playerX + playerW && enemy[i].x + enemy[i].wid > playerX && enemy[i].y < playerY + playerH && enemy[i].y + enemy[i].hei > playerY)
 		{
 			if (attackMode){
 				enemy[i].state = 0;
@@ -362,7 +376,6 @@ void CheckCollision(void)
 			}
 		}
 	}
-
 
 	for (int i = 0; i < ITEM_MAX; i++)
 	{
@@ -391,7 +404,6 @@ void CheckCollision(void)
 			}
 		}
 	}
-
 	if (magnetTimer > 0)
 	{
 		magnetTimer--;
@@ -406,8 +418,8 @@ void CheckCollision(void)
 void DrawUI(void)
 {
 	DrawFormatString(20, 20, GetColor(255, 255, 255), "SCORE : %d", score);
-	DrawFormatString(20, 50, GetColor(255, 100, 100), "HP : %d", hp);
-	DrawBox( 20, 80, 20 + hp * 2, 100, GetColor(0, 255, 0), TRUE);
+	DrawFormatString(20, 55, GetColor(255, 100, 100), "HP : %d", hp);
+	DrawBox( 20, 85, 20 + hp * 2, 100, GetColor(0, 255, 0), TRUE);
 	if (invincibleMode)
 	{
 		DrawFormatString(20, 120, GetColor(255, 255, 0), "LIGHTNING : %d", invincibleTimer / 60);
@@ -419,30 +431,26 @@ void DrawUI(void)
 }
 void MovePlayer(void)
 {
-	bool isJump = false;
-	bool attackMode = false;
-	int attackTimer = 0;
-
-	// ジャンプ
-	playerVY += 0.8f;
+	// 重力
+	playerVY += 1;
 	playerY += playerVY;
-
+	// 着地
 	if (playerY >= 450)
 	{
 		playerY = 450;
-		playerVY = 250;
+		playerVY = 0;
 		isJump = false;
 	}
-	if (CheckHitKey(KEY_INPUT_SPACE) && !isJump) {
-		DrawRectExtendGraph(0, playerVY, 0 + 150, playerVY + 200, 0, 0, playerVY, 300, imgJump, true);
-	}
-	// スライディング
-	else if (CheckHitKey(KEY_INPUT_LSHIFT)) {
-		DrawRectExtendGraph(0, 550, 0 + 230, 500 + 400, 0, 0, 393, 550, imgSliding, true);
+	// ジャンプ開始
+	if (CheckHitKey(KEY_INPUT_SPACE) && !isJump)
+	{
+		playerVY = -18;
+		isJump = true;
+		DrawRectExtendGraph(0, playerY, 150, playerY + 200, 0, 0, 393, 300, imgJump, true);
 	}
 	// 攻撃
 	else if (CheckHitKey(KEY_INPUT_Q)) {
-		DrawRectExtendGraph(0, 500, 0 + 250, 500 + 650, 0, 0, 393, 1050, imgAttack, true);
+		DrawRectExtendGraph(0, playerY, 0 + 250, playerY + 650, 0, 0, 393, 1050, imgAttack, true);
 		attackMode = true;
 		attackTimer = 20;
 	}
@@ -478,6 +486,8 @@ void MovePlayer(void)
 	{
 		attackMode = false;
 	}
+	player.x = 100;
+	player.y = playerY;
 }
 
 void DrawTextC(int x, int y, const char* txt, int col, int siz)
@@ -489,14 +499,28 @@ void DrawTextC(int x, int y, const char* txt, int col, int siz)
 	DrawString(x + 1, y + 1, txt, 0x000000);
 	DrawString(x, y, txt, col);
 }
+
 void InitVariable(void)
 {
 	player.x = WIDTH / 2;
 	player.y = HEIGHT / 2;
 	player.vx = 5;
 	player.vy = 5;
-	GetGraphSize(imgRun, &player.wid, &player.hei);	// 画像の幅と高さを代入
-	for (int i = 0; i < ENEMY_MAX; i++) enemy[i].state = 0;	// 全ての敵機を存在しない状態に
+
 	score = 0;
-	stage = 1;
+	hp = 100;
+	distance = 0;
+	timer = 0;
+
+	invincibleMode = false;
+	magnetMode = false;
+
+	for (int i = 0; i < ENEMY_MAX; i++)
+		enemy[i].state = 0;
+
+	for (int i = 0; i < TRAP_MAX; i++)
+		trap[i].state = 0;
+
+	for (int i = 0; i < ITEM_MAX; i++)
+		item[i].state = 0;
 }
