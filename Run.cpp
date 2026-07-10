@@ -24,6 +24,7 @@ int distance = 0;	// ステージ終端までの距離
 int stage = 1;	// ステージ
 int timer = 0;	// タイマー
 int score = 0;	// スコア
+int hisco = 10000;	// ハイスコア
 int hp = 100;	// 体力
 int invincibleTimer = 0;
 int magnetTimer = 0;	// マグネットの効果時間
@@ -141,6 +142,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		case OVER:
 			ScrollBG(0);
 			DrawTextC(WIDTH / 2 - 25, 220, "GAME OVER", 0xff0000, 100);
+			DrawTextC(WIDTH / 2 - 220, 10, GetColor(255,255,255)"HI-SC %07d", hisco);
 			DrawFormatString(WIDTH / 2 - 400, 350, GetColor(255, 255, 255), "スコア : %d", score);
 			DrawFormatString(WIDTH / 2 - 350, 500, GetColor(255, 255, 255), "距離  : %dｍ", distance);
 			DrawTextC(WIDTH / 2, 650, "PRESS SPACE TO RETRY", 0xffff00, 40);
@@ -155,6 +157,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			}
 			break;
 		}
+
 		ScreenFlip();	// 裏画面の内容を表画面に反映させる
 		WaitTimer(1000 / FPS);	// 1定時間待つ
 		if (ProcessMessage() == -1)break;	// Windowsから情報を受け取りエラーが起きたら終了
@@ -166,33 +169,61 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 }
 
 // ここから下に自作した関数を記述する
+// 初期化用の関数
+void InitVariable(void)
+{
+	player.x = WIDTH / 2;
+	player.y = HEIGHT / 2;
+	player.vx = 5;
+	player.vy = 5;
+	score = 0;
+	hp = 100;
+	distance = 0;
+	timer = 0;
+	noDamageFrame = 0;
+	invincibleMode = false;
+	magnetMode = false;
+
+	for (int i = 0; i < ENEMY_MAX; i++)	enemy[i].state = 0;
+	for (int i = 0; i < TRAP_MAX; i++)	trap[i].state = 0;
+	for (int i = 0; i < ITEM_MAX; i++)	item[i].state = 0;
+}
+
+// 画像用の関数
 void InitGame(void)
 {
 	// 背景用の画像の読み込み
 	imgCastle = LoadGraphWithCheck("image/BackGround.png");
 	imgFloor = LoadGraphWithCheck("image/Floor.png");
 	imgCeiling = LoadGraphWithCheck("image/Ceiling2.png");
+
 	// プレイヤー用の画像の読み込み
 	imgRun = LoadGraphWithCheck("image/Run.png");
 	imgJump = LoadGraphWithCheck("image/Jump.png");
 	imgAttack = LoadGraphWithCheck("image/Attack.png");
 	imgDamage = LoadGraphWithCheck("image/Damage.png");
+
 	// 敵用の画像の読み込み
-	for (int i = 0; i < IMG_ENEMY_MAX; i++){
+	for (int i = 0; i < IMG_ENEMY_MAX; i++)
+	{
 		char file[] = "image/Enemy*.png";
 		file[11] = (char)('0' + i);
 		imgEnemy[i] = LoadGraphWithCheck(file);
 	}
+
 	// トラップ用の画像の読み込み
-	for (int i = 0; i < IMG_TRAP_MAX; i++) {
+	for (int i = 0; i < IMG_TRAP_MAX; i++)
+	{
 		char file[] = "image/Trap*.png";
 		file[10] = (char)('0' + i);
 		imgTrap[i] = LoadGraphWithCheck(file);
 	}
+
 	// その他の画像の読み込み
 	imgDonut = LoadGraphWithCheck("image/Donut.png");
 	imgLightning = LoadGraphWithCheck("image/Lightning.png");
 	imgMagnet = LoadGraphWithCheck("image/Magnet.png");
+
 	// サウンドの読み込みと音量設定
 	bgm = LoadSoundMemWithCheck("sound/BGM.mp3");
 	seDonut = LoadSoundMemWithCheck("sound/DonutSE.mp3");
@@ -206,11 +237,13 @@ void InitGame(void)
 	{
 		enemy[i].state = 0;
 	}
+
 	// トラップの初期化
 	for (int i = 0; i < TRAP_MAX; i++)
 	{
 		trap[i].state = 0;
 	}
+
 	// アイテムの初期化
 	for (int i = 0; i < ITEM_MAX; i++)
 	{
@@ -220,14 +253,16 @@ void InitGame(void)
 }
 
 // 画像の読み込み、読み込み失敗時は通知
-int LoadGraphWithCheck(const char* file) {
+int LoadGraphWithCheck(const char* file) 
+{
 	int res = LoadGraph(file);
 	if (res == -1) { MessageBox(GetMainWindowHandle(), file, "画像の読み込みに失敗", MB_OK | MB_ICONSTOP); }
 	return res;
 }
 
 // 音声の読み込み、読み込み失敗時は通知
-int LoadSoundMemWithCheck(const char* file) {
+int LoadSoundMemWithCheck(const char* file)
+{
 	int sou = LoadSoundMem(file);
 	if (sou == -1) { MessageBox(GetMainWindowHandle(), file, "音楽の再生に失敗", MB_OK | MB_ICONSTOP); }
 	return sou;
@@ -239,11 +274,13 @@ void ScrollBG(int spd)
 	static int castleX = 0;
 	static int floorX = 0;
 	static int ceilingX = 0;
+
 	// 背景
 	castleX -= spd;
 	if (castleX <= -WIDTH) castleX += WIDTH;
 	DrawGraph(castleX, 0, imgCastle, true);
 	DrawGraph(castleX + WIDTH, 0, imgCastle, true);
+
 	// 床
 	floorX += spd;
 	if (floorX >= 120) floorX -= 120;
@@ -251,6 +288,7 @@ void ScrollBG(int spd)
 	{
 		DrawGraph(-floorX + i * 120, 620, imgFloor, true);
 	}
+
 	// 天井
 	ceilingX += spd;
 	if (ceilingX >= 1200)	ceilingX -= 1200;
@@ -259,11 +297,93 @@ void ScrollBG(int spd)
 		DrawGraph(-ceilingX + i * 1200, -70, imgCeiling, true);
 	}
 }
+
+void MovePlayer(void)
+{
+	bool drawPlayer = true;
+
+	// 重力
+	playerVY += 1;
+	playerY += playerVY;
+
+	// 着地
+	if (playerY >= 450)
+	{
+		playerY = 450;
+		playerVY = 0;
+		isJump = false;
+	}
+
+	// ジャンプ開始
+	if (CheckHitKey(KEY_INPUT_SPACE) && !isJump)
+	{
+		playerVY = -18;
+		isJump = true;
+		DrawRectExtendGraph(0, playerY, 262, playerY + 200, 0, 0, 393, 300, imgJump, true);
+	}
+	else if (isJump)
+	{
+		DrawRectExtendGraph(0, playerY, 262, playerY + 200, 0, 0, 393, 300, imgJump, true);
+	}
+
+	// 攻撃
+	else if (CheckHitKey(KEY_INPUT_Q)) {
+		DrawRectExtendGraph(0, playerY, 0 + 250, playerY + 650, 0, 0, 393, 1050, imgAttack, true);
+		attackMode = true;
+		attackTimer = 20;
+		PlaySoundMem(seHit, DX_PLAYTYPE_BACK);
+	}
+
+	// 被弾
+	else if (noDamageFrame > 0)
+	{
+		noDamageFrame--;	// 無敵状態のカウント
+		if (noDamageFrame % 4 < 2 && noDamageFrame > 0)  DrawRectExtendGraph(0, playerY, 150, playerY + 190, 0, 0, 257, 289, imgDamage, true);
+	}
+
+	// 走る
+	else
+	{
+		if (timer <= 10)
+		{
+			DrawRectExtendGraph(0, 450, 0 + 130, 450 + 190, 30, 225, 393, 550, imgRun, true);
+		}
+		else if (timer <= 30 && timer >= 11)
+		{
+			DrawRectExtendGraph(0, 400, 0 + 130, 300 + 400, 570, 0, 393, 900, imgRun, true);
+		}
+		else if (timer <= 50 && timer >= 31)
+		{
+			DrawRectExtendGraph(0, 400, 0 + 130, 400 + 300, 1080, 0, 393, 900, imgRun, true);
+		}
+		if (timer >= 50)
+		{
+			timer = 0;
+		}
+	}
+
+	// 攻撃モードのカウントダウン
+	if (attackTimer > 0)
+	{
+		attackTimer--;
+	}
+
+	// 攻撃モードの終了
+	else
+	{
+		attackMode = false;
+	}
+	player.x = 100;
+	player.y = playerY;
+}
+
 // 敵の生成
 int SetEnemy(int x, int y, int vx, int vy, int ptn, int img)
 {
-	for (int i = 0; i < ENEMY_MAX; i++) {
-		if (enemy[i].state == 0) {
+	for (int i = 0; i < ENEMY_MAX; i++)
+	{
+		if (enemy[i].state == 0)
+		{
 			enemy[i].x = x;
 			enemy[i].y = y;
 			enemy[i].vx = vx;
@@ -271,7 +391,7 @@ int SetEnemy(int x, int y, int vx, int vy, int ptn, int img)
 			enemy[i].state = 1;
 			enemy[i].pattern = ptn;
 			enemy[i].image = img;
-			GetGraphSize(img, &enemy[i].wid, &enemy[i].hei);	// 画像の幅と高さを代入
+			GetGraphSize(imgEnemy[img], &enemy[i].wid, &enemy[i].hei);	// 画像の幅と高さを代入
 			return i;
 		}
 	}
@@ -290,23 +410,6 @@ void MoveEnemy(void)
 		{
 			enemy[i].state = 0;
 		}
-		if (noDamageFrame == 0)	// 無敵状態でないとき、自機とヒットチェック
-		{
-			int dx = abs(enemy[i].x - player.x);	// 中心座標のピクセル数
-			int dy = abs(enemy[i].y - player.y);	// 中心座標のピクセル数
-			if (dx < enemy[i].wid / 2 + player.wid / 2 && dy < enemy[i].hei / 2 + player.hei / 2)
-			{
-				noDamageFrame = FPS;	// 無敵状態をリセット
-			}
-		}
-		// 無敵中は点滅
-		if (invincibleTimer > 0)
-		{
-			if ((invincibleTimer / 5) % 2 == 0)
-			{
-				DrawPlayer = false;
-			}
-		}
 	}
 }
 
@@ -324,6 +427,7 @@ int SetTrap(int x, int y, int vx, int vy, int ptn, int img)
 			trap[i].pattern = ptn;
 			trap[i].image = img;
 			trap[i].state = 1;
+			GetGraphSize(imgTrap[img], &trap[i].wid, &trap[i].hei);	// 画像の幅と高さを代入
 			return i;
 		}
 	}
@@ -357,17 +461,22 @@ void SetItem(void)
 			item[i].y = 250 + GetRand(250);
 			int rnd = GetRand(9);
 
+			// ドーナツ 70%
 			if (rnd < 7)
 			{
-				item[i].image = 0;   // ドーナツ 70%
+				item[i].image = 0;
 			}
+
+			// ライトニング 20%
 			else if (rnd < 9)
 			{
-				item[i].image = 1;   // ライトニング 20%
+				item[i].image = 1;
 			}
+
+			// マグネット 10%
 			else
 			{
-				item[i].image = 2;   // マグネット 10%
+				item[i].image = 2;
 			}
 			return;
 		}
@@ -380,16 +489,18 @@ void MoveItem(void)
 	for (int i = 0; i < ITEM_MAX; i++)
 	{
 		if (item[i].state == 0) continue;
-
 		item[i].x -= 8;
 		if (item[i].image == 0)DrawGraph(item[i].x, item[i].y, imgDonut, true);
 		if (item[i].image == 1)DrawGraph(item[i].x, item[i].y, imgLightning, true);
 		if (item[i].image == 2)DrawGraph(item[i].x, item[i].y, imgMagnet, true);
-		if (item[i].x < -100){
+		if (item[i].x < -100)
+		{
 			item[i].state = 0;
 		}
-		if (magnetMode){
-			if (item[i].x < 400){
+		if (magnetMode)
+		{
+			if (item[i].x < 400)
+			{
 				item[i].y += (playerY - item[i].y) * 0.1f;
 			}
 		}
@@ -405,44 +516,69 @@ void CheckCollision(void)
 
 	for (int i = 0; i < ENEMY_MAX; i++)
 	{
+		// 敵との当たり判定
 		if (enemy[i].state == 0) continue;
 		if (enemy[i].x < playerX + playerW && enemy[i].x + enemy[i].wid > playerX && enemy[i].y < playerY + playerH && enemy[i].y + enemy[i].hei > playerY)
 		{
-			if (attackMode){
+			// 攻撃
+			if (attackMode)
+			{
 				enemy[i].state = 0;
 				score += 500;
 				PlaySoundMem(seHit2, DX_PLAYTYPE_BACK);
 			}
-			else if (invincibleMode){
-				enemy[i].state = 0;    // 体当たりで倒す
+
+			// 無敵アイテム
+			else if (invincibleMode)
+			{
+				enemy[i].state = 0;
 				score += 300;
 				PlaySoundMem(seHit, DX_PLAYTYPE_BACK);
+				noDamageFrame = FPS;
 			}
-			else{
+
+			// その他
+			else
+			{
 				enemy[i].state = 0;
 				hp -= 10;
 				PlaySoundMem(seHit2, DX_PLAYTYPE_BACK);
 			}
 		}
+		if (noDamageFrame == 0)	// 無敵状態でないとき、自機とヒットチェック
+		{
+			int dx = abs(enemy[i].x - player.x);	// 中心座標のピクセル数
+			int dy = abs(enemy[i].y - player.y);	// 中心座標のピクセル数
+			if (dx < enemy[i].wid / 2 + player.wid / 2 && dy < enemy[i].hei / 2 + player.hei / 2)
+			{
+				noDamageFrame = FPS;	// 無敵状態をリセット
+			}
+		}
 	}
 
+	// アイテムとの当たり判定
 	for (int i = 0; i < ITEM_MAX; i++)
 	{
 		if (item[i].state)
 		{
 			if (item[i].x < 150 && item[i].x > 0 && abs(item[i].y - playerY) < 80)
 			{
+				// ドーナツ
 				if (item[i].image == 0)
 				{
 					score += 100;
 					PlaySoundMem(seDonut, DX_PLAYTYPE_BACK);
 				}
+
+				// 雷
 				else if (item[i].image == 1)
 				{
 					invincibleMode = true;
 					invincibleTimer = 300;    // 約5秒
 					PlaySoundMem(seLightning, DX_PLAYTYPE_BACK);
 				}
+
+				// 磁石
 				else if (item[i].image == 2)
 				{
 					magnetMode = true;
@@ -461,6 +597,8 @@ void CheckCollision(void)
 	{
 		magnetMode = false;
 	}
+
+	// トラップとの当たり判定
 	for (int i = 0; i < TRAP_MAX; i++)
 	{
 		if (trap[i].state == 0) continue;
@@ -469,11 +607,19 @@ void CheckCollision(void)
 			trap[i].state = 0;
 			if (!invincibleMode)
 			{
-
 				hp -= 20;
 				damageTimer = 60;
 				invincibleTimer = 60;
 				PlaySoundMem(seHit2, DX_PLAYTYPE_BACK);
+			}
+		}
+		if (noDamageFrame == 0)	// 無敵状態でないとき、自機とヒットチェック
+		{
+			int dx = abs(trap[i].x - player.x);	// 中心座標のピクセル数
+			int dy = abs(trap[i].y - player.y);	// 中心座標のピクセル数
+			if (dx < trap[i].wid / 2 + player.wid / 2 && dy < trap[i].hei / 2 + player.hei / 2)
+			{
+				noDamageFrame = FPS;	// 無敵状態をリセット
 			}
 		}
 	}
@@ -481,84 +627,18 @@ void CheckCollision(void)
 
 void DrawUI(void)
 {
-	DrawFormatString(20, 20, GetColor(255, 255, 255), "SCORE : %d", score);
-	DrawFormatString(20, 55, GetColor(255, 100, 100), "HP : %d", hp);
-	DrawBox( 20, 95, 20 + hp * 2, 120, GetColor(0, 255, 0), TRUE);
+	DrawFormatString(20, 20, GetColor(255, 255, 255), "HI-SC : %07d", hisco);
+	DrawFormatString(20, 55, GetColor(255, 255, 255), "SCORE : %07d", score);
+	DrawFormatString(20, 95, GetColor(255, 100, 100), "HP : %d", hp);
+	DrawBox( 20, 130, 20 + hp * 2, 155, GetColor(0, 255, 0), TRUE);
 	if (invincibleMode)
 	{
-		DrawFormatString(20, 125, GetColor(255, 255, 0), "LIGHTNING : %d", invincibleTimer / 60);
+		DrawFormatString(20, 165, GetColor(255, 255, 0), "LIGHTNING : %d", invincibleTimer / 60);
 	}
 	if (magnetMode)
 	{
-		DrawFormatString(20, 165, GetColor(0, 255, 255), "MAGNET : %d", magnetTimer / 60);
+		DrawFormatString(20, 205, GetColor(0, 255, 255), "MAGNET : %d", magnetTimer / 60);
 	}
-}
-
-void MovePlayer(void)
-{
-	bool drawPlayer = true;
-	// 重力
-	playerVY += 1;
-	playerY += playerVY;
-	// 着地
-	if (playerY >= 450)
-	{
-		playerY = 450;
-		playerVY = 0;
-		isJump = false;
-	}
-	// ジャンプ開始
-	if (CheckHitKey(KEY_INPUT_SPACE) && !isJump)
-	{
-		playerVY = -18;
-		isJump = true;
-		DrawRectExtendGraph(0, playerY, 262, playerY + 200, 0, 0, 393, 300, imgJump, true);
-	}
-	else if(isJump)
-	{
-		DrawRectExtendGraph(0, playerY, 262, playerY + 200, 0, 0, 393, 300, imgJump, true);
-	}
-	// 攻撃
-	else if (CheckHitKey(KEY_INPUT_Q)) {
-		DrawRectExtendGraph(0, playerY, 0 + 250, playerY + 650, 0, 0, 393, 1050, imgAttack, true);
-		attackMode = true;
-		attackTimer = 20;
-		PlaySoundMem(seHit, DX_PLAYTYPE_BACK);
-	}
-	else if (noDamageFrame > 0)noDamageFrame--;	// 無敵状態のカウント
-	else if (noDamageFrame % 4 < 2)  DrawRectExtendGraph(0, playerY, 150, playerY + 190, 0, 0, 257, 289, imgDamage, true);
-	// 走る
-	else
-	{
-		if (timer <= 10)
-		{
-			DrawRectExtendGraph(0, 450, 0 + 130, 450 + 190, 30, 225, 393, 550, imgRun, true);
-		}
-		else if (timer <= 30 && timer >= 11)
-		{
-			DrawRectExtendGraph(0, 400, 0 + 130, 300 + 400, 570, 0, 393, 900, imgRun, true);
-		}
-		else if (timer <= 50 && timer >= 31)
-		{
-			DrawRectExtendGraph(0, 400, 0 + 130, 400 + 300, 1080, 0, 393, 900, imgRun, true);
-		}
-		if (timer >= 50)
-		{
-			timer = 0;
-		}
-	}
-	// 攻撃モードのカウントダウン
-	if (attackTimer > 0)
-	{
-		attackTimer--;
-	}
-	// 攻撃モードの終了
-	else
-	{
-		attackMode = false;
-	}
-	player.x = 100;
-	player.y = playerY;
 }
 
 void DrawTextC(int x, int y, const char* txt, int col, int siz)
@@ -571,28 +651,16 @@ void DrawTextC(int x, int y, const char* txt, int col, int siz)
 	DrawString(x, y, txt, col);
 }
 
-void InitVariable(void)
-{
-	player.x = WIDTH / 2;
-	player.y = HEIGHT / 2;
-	player.vx = 5;
-	player.vy = 5;
-
-	score = 0;
-	hp = 100;
-	distance = 0;
-	timer = 0;
-	noDamageFrame = 0;
-	invincibleMode = false;
-	magnetMode = false;
-
-	for (int i = 0; i < ENEMY_MAX; i++)	enemy[i].state = 0;
-	for (int i = 0; i < TRAP_MAX; i++)	trap[i].state = 0;
-	for (int i = 0; i < ITEM_MAX; i++)	item[i].state = 0;
-}
 void DrawImage(int img, int x, int y)
 {
 	int w, h;
 	GetGraphSize(img, &w, &h);
 	DrawGraph(x - w / 2, y - h / 2, img, true);
+}
+
+void DrawText(int x, int y, const char* txt, int val, int col, int siz)
+{
+	SetFontSize(siz);	// 文字の大きさを指定
+	DrawFormatString(x + 1, y + 1, 0x000000, txt, val);	// 黒で文字を表示
+	DrawFormatString(x, y, col, txt, val);	// 引数の色で文字を表示
 }

@@ -33,3 +33,4 @@ void DrawUI(void);
 void DrawTextC(int x, int y, const char* txt, int col, int siz);
 void InitVariable(void);
 void DrawImage(int img, int x, int y);
+void DrawText(int x, int y, const char* txt, int val, int col, int siz);
