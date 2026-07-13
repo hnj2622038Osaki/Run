@@ -141,10 +141,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 		case OVER:
 			ScrollBG(0);
-			DrawTextC(WIDTH / 2 - 25, 220, "GAME OVER", 0xff0000, 100);
-			DrawTextC(WIDTH / 2 - 220, 10, GetColor(255,255,255)"HI-SC %07d", hisco);
-			DrawFormatString(WIDTH / 2 - 400, 350, GetColor(255, 255, 255), "スコア : %d", score);
-			DrawFormatString(WIDTH / 2 - 350, 500, GetColor(255, 255, 255), "距離  : %dｍ", distance);
+			DrawTextC(WIDTH / 2 - 25, 120, "GAME OVER", 0xff0000, 100);
+			DrawFormatString(WIDTH / 2 - 400, 250, GetColor(255,255,0),"HI-SC ; %07d", hisco);
+			DrawFormatString(WIDTH / 2 - 400, 350, GetColor(255, 255, 255), "SCORE : %07d", score);
+			DrawFormatString(WIDTH / 2 - 350, 500, GetColor(255, 255, 255), "距離  : %07dｍ", distance);
 			DrawTextC(WIDTH / 2, 650, "PRESS SPACE TO RETRY", 0xffff00, 40);
 			if (CheckHitKey(KEY_INPUT_SPACE))
 			{
@@ -468,7 +468,7 @@ void SetItem(void)
 			}
 
 			// ライトニング 20%
-			else if (rnd < 9)
+			else if (timer > 0)
 			{
 				item[i].image = 1;
 			}
@@ -476,6 +476,12 @@ void SetItem(void)
 			// マグネット 10%
 			else
 			{
+				item[i].image = 2;
+			}
+			if (distance >= 10000 && distance <= 12000)
+			{
+				item[i].image = 0;
+				item[i].image = 1;
 				item[i].image = 2;
 			}
 			return;
@@ -524,7 +530,7 @@ void CheckCollision(void)
 			if (attackMode)
 			{
 				enemy[i].state = 0;
-				score += 500;
+				score += 50;
 				PlaySoundMem(seHit2, DX_PLAYTYPE_BACK);
 			}
 
@@ -532,7 +538,7 @@ void CheckCollision(void)
 			else if (invincibleMode)
 			{
 				enemy[i].state = 0;
-				score += 300;
+				score += 150;
 				PlaySoundMem(seHit, DX_PLAYTYPE_BACK);
 				noDamageFrame = FPS;
 			}
@@ -566,7 +572,7 @@ void CheckCollision(void)
 				// ドーナツ
 				if (item[i].image == 0)
 				{
-					score += 100;
+					score += 500;
 					PlaySoundMem(seDonut, DX_PLAYTYPE_BACK);
 				}
 
@@ -627,6 +633,7 @@ void CheckCollision(void)
 
 void DrawUI(void)
 {
+	if (hisco < score)hisco = score;
 	DrawFormatString(20, 20, GetColor(255, 255, 255), "HI-SC : %07d", hisco);
 	DrawFormatString(20, 55, GetColor(255, 255, 255), "SCORE : %07d", score);
 	DrawFormatString(20, 95, GetColor(255, 100, 100), "HP : %d", hp);
