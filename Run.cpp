@@ -6,7 +6,7 @@ const int WIDTH = 1200, HEIGHT = 720;	// ウィンドウの幅と高さのピクセル数
 const int FPS = 60;	// フレームレート
 const int IMG_ENEMY_MAX = 4;	// 敵の画像の枚数
 const int IMG_TRAP_MAX = 2;	// トラップの画像の枚数
-const int ENEMY_MAX = 3;	// 敵の最大数
+const int ENEMY_MAX = 15;	// 敵の最大数
 const int ITEM_MAX = 100;	// アイテムの最大数
 const int TRAP_MAX = 2;	// トラップの最大数
 const int RUN_MAX = 100;
@@ -34,6 +34,9 @@ int scene = TITLE;	// 現在のシーン
 int attackTimer = 0;	// 攻撃モードの時間
 int damageTimer = 0;
 int noDamageFrame = 0;	// ダメージを受けたときの無敵時間
+int jumpTargetX = 100;
+int jumpTargetY = 450;
+
 
 bool invincibleMode = false;
 bool magnetMode = false;
@@ -404,7 +407,27 @@ void MoveEnemy(void)
 	for (int i = 0; i < ENEMY_MAX; i++)
 	{
 		if (enemy[i].state == 0) continue;
-		enemy[i].x -= 8;
+		// Enemy1(通常)
+		if (enemy[i].image == 0 || enemy[i].image == 1)
+		{
+			enemy[i].x -= 8;
+		}
+		// Enemy2
+		else if (enemy[i].image == 2)
+		{
+			enemy[i].x -= 8;
+			int targetY = playerY - 120; // ジャンプ位置付近
+			if (enemy[i].y < targetY) enemy[i].y += 4;
+			if (enemy[i].y > targetY) enemy[i].y -= 4;
+		}
+		// Enemy3 (Enemy2より速い)
+		else if (enemy[i].image == 3)
+		{
+			enemy[i].x -= 12;
+			int targetY = playerY - 120; // ジャンプ位置付近
+			if (enemy[i].y < targetY) enemy[i].y += 8;
+			if (enemy[i].y > targetY) enemy[i].y -= 8;
+		}
 		DrawGraph(enemy[i].x, enemy[i].y, imgEnemy[enemy[i].image], true);
 		if (enemy[i].x < -200)
 		{
@@ -608,7 +631,7 @@ void CheckCollision(void)
 	for (int i = 0; i < TRAP_MAX; i++)
 	{
 		if (trap[i].state == 0) continue;
-		if (trap[i].x < 180 && trap[i].x > 0 && abs(trap[i].y - playerY) < 120)
+		if (trap[i].x < 120 && trap[i].x > -60 && abs(trap[i].y - playerY) < 120)
 		{
 			trap[i].state = 0;
 			if (!invincibleMode)
